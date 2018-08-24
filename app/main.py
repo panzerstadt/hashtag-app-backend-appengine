@@ -196,7 +196,7 @@ if __name__ == '__main__':
     t = Thread(target=run_schedule)
     t.start()
     print("Start time: " + str(start_time))
-    application.run(debug=True, host='0.0.0.0', port=80, use_reloader=False, ssl_context="adhoc")
+    application.run(debug=True, host='0.0.0.0', port=5000, use_reloader=False)
     print('a flask app is initiated at {0}'.format(application.instance_path))
 
 
