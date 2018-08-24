@@ -4,8 +4,8 @@ db_path = './db/daily_database.json'
 
 
 def load_db(database_path=db_path, debug=False):
-    with open(database_path) as json_db:
-        return json.loads(json_db.read())
+    with open(database_path, 'r') as json_db:
+        return json.load(json_db)
 
 
 def update_db(dict_in, database_path=db_path, debug=False):
@@ -37,7 +37,7 @@ def make_db(db_json_dict_structure, database_path=db_path, debug=False):
             if debug:
                 print('db already made: ', test)
             return json_db
-    except:
+    except KeyError:
         with open(database_path, 'w') as json_db:
             json.dump(db_json_dict_structure, json_db)
             print('new db constructed')

@@ -40,19 +40,19 @@ DATABASE_PATH = './db/daily_database.json'
 DATABASE_STRUCTURE = {
     "trends": {
         "include_hashtags": {
-            "timestamp": '1999-01-01 00:00:00',
-            "initial_timestamp": datetime_2_str(datetime.datetime.now(), output_format=time_format_full_with_timezone),
+            "timestamp": '1999-01-01 00:00:00+0000',
+            "initial_timestamp": datetime_2_str(datetime.datetime.now(tz=pytz.utc), output_format=time_format_full_with_timezone),
             "content": []
         },
         "exclude_hashtags": {
-            "timestamp": '1999-01-01 00:00:00',
-            "initial_timestamp": datetime_2_str(datetime.datetime.now(), output_format=time_format_full_with_timezone),
+            "timestamp": '1999-01-01 00:00:00+0000',
+            "initial_timestamp": datetime_2_str(datetime.datetime.now(tz=pytz.utc), output_format=time_format_full_with_timezone),
             "content": []
         }
     },
     "hashtags": {
-        "timestamp": '1999-01-01 00:00:00',
-        "initial_timestamp": datetime_2_str(datetime.datetime.now(), output_format=time_format_full_with_timezone),
+        "timestamp": '1999-01-01 00:00:00+0000',
+        "initial_timestamp": datetime_2_str(datetime.datetime.now(tz=pytz.utc), output_format=time_format_full_with_timezone),
         "content": []
     }
 }
@@ -95,8 +95,8 @@ def get_updates_from_twitter():
 # only POST
 @application.route('/', methods=['GET'])
 def daily():
-    print("time since app start: {} minutes".format(str((time.time() - start_time) / 60)))
-    print("time since last update: {} minutes".format(str((time.time() - update_start) / 60)))
+    print("time since app start: {:.2f} minutes".format(str((time.time() - start_time) / 60)))
+    print("time since last update: {:.2f} minutes".format(str((time.time() - update_start) / 60)))
 
     full_db = load_db(database_path=DATABASE_PATH)
 
@@ -129,8 +129,8 @@ def hashtags_twitter_only():
                   type: number
                   default: 200
     """
-    print("time since app start: {} minutes".format(str((time.time() - start_time) / 60)))
-    print("time since last update: {} minutes".format(str((time.time() - update_start) / 60)))
+    print("time since app start: {:.2f} minutes".format(str((time.time() - start_time) / 60)))
+    print("time since last update: {:.2f} minutes".format(str((time.time() - update_start) / 60)))
 
     full_db = load_db(database_path=DATABASE_PATH)
 
