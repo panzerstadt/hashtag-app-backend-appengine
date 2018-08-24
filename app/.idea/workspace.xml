@@ -11,11 +11,11 @@
   </component>
   <component name="FileEditorManager">
     <leaf>
-      <file leaf-file-name="main.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="main.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/main.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="328">
-              <caret line="182" column="16" selection-start-line="182" selection-start-column="9" selection-end-line="182" selection-end-column="16" />
+            <state relative-caret-position="226">
+              <caret line="98" column="92" selection-start-line="98" selection-start-column="92" selection-end-line="98" selection-end-column="92" />
               <folding>
                 <element signature="e#47#88#0" expanded="true" />
               </folding>
@@ -35,20 +35,8 @@
       <file leaf-file-name="twitter_api.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/tools/twitter_api.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="165">
-              <caret line="48" column="32" selection-start-line="48" selection-start-column="32" selection-end-line="48" selection-end-column="32" />
-              <folding>
-                <element signature="e#0#11#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="daily_database.json" pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/db/daily_database.json">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="491">
-              <caret line="26440" column="1" selection-start-line="26440" selection-start-column="1" selection-end-line="26440" selection-end-column="1" />
+            <state relative-caret-position="60">
+              <caret line="4" lean-forward="true" selection-start-line="4" selection-end-line="4" />
             </state>
           </provider>
         </entry>
@@ -64,15 +52,15 @@
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
       <list>
-        <option value="$PROJECT_DIR$/main.py" />
         <option value="$PROJECT_DIR$/tools/db_utils.py" />
         <option value="$PROJECT_DIR$/db/daily_database.json" />
+        <option value="$PROJECT_DIR$/main.py" />
       </list>
     </option>
   </component>
   <component name="ProjectFrameBounds">
-    <option name="x" value="591" />
-    <option name="y" value="29" />
+    <option name="x" value="677" />
+    <option name="y" value="23" />
     <option name="width" value="935" />
     <option name="height" value="944" />
   </component>
@@ -160,13 +148,13 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="591" y="29" width="935" height="944" extended-state="0" />
+    <frame x="677" y="23" width="935" height="944" extended-state="0" />
     <editor active="true" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.22319475" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.22319475" />
       <window_info anchor="bottom" id="TODO" order="6" />
       <window_info anchor="bottom" id="Event Log" side_tool="true" />
-      <window_info active="true" anchor="bottom" id="Run" order="2" visible="true" weight="0.3293979" />
+      <window_info anchor="bottom" id="Run" order="2" visible="true" weight="0.3293979" />
       <window_info anchor="bottom" id="Version Control" show_stripe_button="false" />
       <window_info anchor="bottom" id="Python Console" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
@@ -193,26 +181,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/main.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="328">
-          <caret line="182" column="16" selection-start-line="182" selection-start-column="9" selection-end-line="182" selection-end-column="16" />
-          <folding>
-            <element signature="e#47#88#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/tools/twitter_api.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="165">
-          <caret line="48" column="32" selection-start-line="48" selection-start-column="32" selection-end-line="48" selection-end-column="32" />
-          <folding>
-            <element signature="e#0#11#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/tools/db_utils.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="51">
@@ -222,8 +190,25 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/db/daily_database.json">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="491">
-          <caret line="26440" column="1" selection-start-line="26440" selection-start-column="1" selection-end-line="26440" selection-end-column="1" />
+        <state relative-caret-position="396510">
+          <caret line="26434" column="13" selection-start-line="26434" selection-start-column="13" selection-end-line="26434" selection-end-column="13" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/tools/twitter_api.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="60">
+          <caret line="4" lean-forward="true" selection-start-line="4" selection-end-line="4" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/main.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="226">
+          <caret line="98" column="92" selection-start-line="98" selection-start-column="92" selection-end-line="98" selection-end-column="92" />
+          <folding>
+            <element signature="e#47#88#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>

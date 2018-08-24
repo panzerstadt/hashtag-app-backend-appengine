@@ -95,8 +95,8 @@ def get_updates_from_twitter():
 # only POST
 @application.route('/', methods=['GET'])
 def daily():
-    print("time since app start: {:.2f} minutes".format(str((time.time() - start_time) / 60)))
-    print("time since last update: {:.2f} minutes".format(str((time.time() - update_start) / 60)))
+    print("time since app start: {:.2f} minutes".format((time.time() - start_time) / 60))
+    print("time since last update: {:.2f} minutes".format((time.time() - update_start) / 60))
 
     full_db = load_db(database_path=DATABASE_PATH)
 
