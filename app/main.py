@@ -57,7 +57,7 @@ DATABASE_STRUCTURE = {
     }
 }
 
-REFRESH_MINS = 5
+REFRESH_MINS = 15
 
 
 def run_schedule():
