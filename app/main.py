@@ -20,11 +20,11 @@ allowed_domains = [
     r'*',
 ]
 
-application = Flask(__name__)
-swagger = Swagger(application)
-application.config.update(JSON_AS_ASCII=False,
+app = Flask(__name__)
+swagger = Swagger(app)
+app.config.update(JSON_AS_ASCII=False,
                           JSONIFY_PRETTYPRINT_REGULAR=True)
-CORS(application,
+CORS(app,
      origins=allowed_domains,
      resources=r'*',
      supports_credentials=True)
@@ -93,7 +93,7 @@ def get_updates_from_twitter():
 
 
 # only POST
-@application.route('/', methods=['GET'])
+@app.route('/', methods=['GET'])
 def daily():
     print("time since app start: {:.2f} minutes".format((time.time() - start_time) / 60))
     print("time since last update: {:.2f} minutes".format((time.time() - update_start) / 60))
@@ -105,7 +105,7 @@ def daily():
     return "hello {}".format('WAIT')
 
 
-@application.route('/twitter/hashtags')
+@app.route('/twitter/hashtags')
 def hashtags_twitter_only():
     """
         get list of latest tweets, locations, sentiment, and time
@@ -144,7 +144,7 @@ def hashtags_twitter_only():
     return textify(output_str)
 
 
-@application.route('/db', methods=['GET'])
+@app.route('/db', methods=['GET'])
 def all():
     full_db = load_db(database_path=DATABASE_PATH)
 
@@ -158,7 +158,7 @@ def all():
     return jsonify(full_db)
 
 
-@application.route('/twitter/trends', methods={'GET'})
+@app.route('/twitter/trends', methods={'GET'})
 def trends():
     full_db = load_db(database_path=DATABASE_PATH)
 
@@ -179,8 +179,27 @@ def trends():
     print('db init time: {}'.format(db_init_timestamp))
     print('diff: {}'.format(datetime.datetime.now(tz=pytz.utc) - db_init_timestamp))
 
+    # send back only a portion of the db
+    results = full_db['trends']['include_hashtags']
+
+    contents = results['content']
+
+    output_content = []
+    for c in contents:
+        output_content.append({
+            "label": c['label'],
+            "time": c['time'],
+            "volume": c['volume']
+        })
+
+    output_results = {
+        "content": output_content,
+        "timestamp": results['timestamp'],
+        "initial_timestamp": results['initial_timestamp']
+    }
+
     trends_output = {
-        "results": full_db['trends']['include_hashtags'],
+        "results": output_results,
         "status": 'ok'
     }
 
@@ -196,7 +215,7 @@ if __name__ == '__main__':
     t = Thread(target=run_schedule)
     t.start()
     print("Start time: " + str(start_time))
-    application.run(debug=True, host='0.0.0.0', port=5000, use_reloader=False)
-    print('a flask app is initiated at {0}'.format(application.instance_path))
+    app.run(debug=True, host='0.0.0.0', port=8080, use_reloader=False)
+    print('a flask app is initiated at {0}'.format(app.instance_path))
 
 

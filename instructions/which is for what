@@ -1,0 +1,11 @@
+which is for what
+
+## google app engine
+app.yaml
+
+## docker compose
+docker-compose.override.yml
+docker-compose.yml
+
+## docker/kubernetes, heroku
+Dockerfile
