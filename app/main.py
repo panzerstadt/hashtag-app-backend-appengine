@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template_string
 from flask_cors import CORS
 
 from tools.baseutils import textify
@@ -9,7 +9,7 @@ import time, datetime, pytz
 import schedule
 from threading import Thread
 
-from tools.twitter_api import get_top_trends_from_twitter, get_top_hashtags_from_twitter
+from tools.twitter_api import get_top_trends_from_twitter, get_top_hashtags_from_twitter, check_rate_limit
 from tools.db_utils import make_db, load_db, update_db
 from tools.time_utils import datetime_2_str, str_2_datetime
 
@@ -72,8 +72,6 @@ def get_twitter_trends():
 
     get_top_trends_from_twitter(country='Japan', cache_duration_mins=REFRESH_MINS-1)
 
-    pass
-
 
 def get_twitter_extended_hashtags():
     print("Elapsed time: " + str(time.time() - start_time))
@@ -89,7 +87,6 @@ def get_updates_from_twitter():
     #get_twitter_extended_hashtags()
 
     print("total update time took: {} seconds".format(str(time.time() - update_start)))
-
 
 
 # only POST
@@ -146,6 +143,22 @@ def hashtags_twitter_only():
 
 @app.route('/db', methods=['GET'])
 def all():
+    """
+        the full database. use to get updated db before updating container
+        ---
+        responses:
+          200:
+            description: returns database
+            schema:
+              id: databaseGet
+              properties:
+                results:
+                  type: json
+                  default: {trends: {include_hashtags: {}, exclude_hashtags: {}, hashtags: {}}
+                status:
+                  type: number
+                  default: 200
+    """
     full_db = load_db(database_path=DATABASE_PATH)
 
     db_init_timestamp = str_2_datetime(full_db['trends']['include_hashtags']['initial_timestamp'], input_format=time_format_full_with_timezone)
@@ -160,6 +173,22 @@ def all():
 
 @app.route('/twitter/trends', methods={'GET'})
 def trends():
+    """
+        loads trends database
+        ---
+        responses:
+          200:
+            description: returns database
+            schema:
+              id: databaseGet
+              properties:
+                results:
+                  type: json
+                  default: {content: {}, timestamp: "", initial_timestamp: ""}
+                status:
+                  type: string
+                  default: ok
+    """
     full_db = load_db(database_path=DATABASE_PATH)
 
     db_init_timestamp = str_2_datetime(full_db['trends']['include_hashtags']['initial_timestamp'],
@@ -204,6 +233,61 @@ def trends():
     }
 
     return jsonify(trends_output)
+
+
+@app.route('/twitter/trends/images', methods={'GET'})
+def images():
+    full_db = load_db(database_path=DATABASE_PATH)
+
+    # from trends content
+    # send back only a portion of the db
+    results = full_db['trends']['include_hashtags']
+
+    contents = results['content']
+
+    output_content = []
+    for c in contents:
+        output_media_url = []
+        try:
+            for t in c['tweets']:
+                output_media_url += t['media']
+        except:
+            continue
+
+        output_content.append({
+            "label": c['label'],
+            "time": c['time'],
+            "media": output_media_url
+        })
+
+    output_results = {
+        "content": output_content,
+        "timestamp": results['timestamp'],
+        "initial_timestamp": results['initial_timestamp']
+    }
+
+    trends_output = {
+        "results": output_results,
+        "status": 'ok'
+    }
+
+    return jsonify(trends_output)
+
+
+    pass
+
+@app.route('/twitter/rate_limit', methods={'GET'})
+def ratelimit():
+    """
+    return rate limit
+    :return:
+    """
+    rl_search = check_rate_limit(endpoint='GetSearch')
+    rl_trends = check_rate_limit(endpoint='trends')
+
+    rl = '\n'.join([rl_search, rl_trends]).replace('\n', '<br/>')
+
+    return render_template_string(rl)
 
 
 

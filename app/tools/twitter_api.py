@@ -7,7 +7,7 @@ import twitter
 from hidden.hidden import Twitter
 
 from tools.db_utils import load_db, update_db
-from tools.time_utils import str_2_datetime, datetime_2_str
+from tools.time_utils import str_2_datetime, datetime_2_str, str_to_unix_timestamp
 from tools.baseutils import get_filepath
 
 db_path = get_filepath('./db/daily_database.json')
@@ -27,6 +27,118 @@ api = twitter.Api(consumer_key=consumer_key,
                   access_token_key=access_token_key,
                   access_token_secret=access_token_secret,
                   sleep_on_rate_limit=True)
+
+
+def check_rate_limit(endpoint="GetSearch", debug=False):
+    # check time now
+    time_now = datetime.datetime.utcnow()
+
+    if debug:
+        print("time now: ", time_now)
+        print("timestamp now: ", time_now.timestamp())
+
+    # twitter get rate limits from endpoint
+    api.InitializeRateLimit()
+
+    response = api.rate_limit
+    rl = response.resources
+
+    if endpoint.lower() == "getsearch":
+        output = rl['search']
+        # 180 searches per 15 mins
+    elif endpoint.lower() == "trends":
+        output = rl['trends']
+    else:
+        output = rl['search']
+
+    if debug:
+        print(json.dumps(rl, indent=4, ensure_ascii=False))
+
+    rl_output = []
+    rl_output.append('')
+    rl_output.append('rate limit for {}:'.format(endpoint))
+    rl_output.append(str(output))
+    rl_output.append('')
+
+    # diff
+    for k, v in output.items():
+        diff = str_to_unix_timestamp(v['reset']) - time_now
+        diff_mins = diff.total_seconds() / 60
+        rl_output.append('endpoint "{}" refreshes in {:.2f} minutes'.format(k, diff_mins))
+
+    rl_output.append('')
+
+    rl_output = '\n'.join(rl_output)
+    return rl_output
+
+
+# API call
+def get_search_tweets(query="pokemon", return_list=['media', 'text', 'hashtags', 'retweet_count', 'id'], count=100, debug=False):
+    """
+    search limit: 180 / 15 mins
+    status limit:
+    :param query:
+    :return:
+    """
+    # currently limited to japanese, as a way to geofence searches to Japan
+    response = api.GetSearch(lang="ja", term=query, count=count)
+
+    output = []
+    for r in response:
+        r = r.AsDict()
+
+        if debug:
+            print('')
+            print("response")
+            print(json.dumps(r, indent=4, ensure_ascii=False))
+
+        # keys are the things you want from the definition
+        return_dict = {}
+        if return_list:
+            for k in return_list:
+                try:
+                    return_dict[k] = r[k]
+                except KeyError:
+                    return_dict[k] = {}
+
+        output.append(return_dict)
+
+    return output
+
+
+# helper function for search_tweets
+def analyze_trending_keyword(keyword="pokemon", count=100):
+    """
+    i can do a 180 of these every 15 mins
+    meaning i can analyze 180 keywords every 15 mins, returning all images
+    :param keyword:
+    :return:
+    """
+    tweets = get_search_tweets(query=keyword, count=count)
+
+    output_tweets = []
+    for tweet in tweets:
+        # loop through every tweet
+        output_tweet = {}
+        for k, v in tweet.items():
+
+            if k == "media" and v:
+                # turn media dict into img url
+                output_tweet[k] = []
+                for m in v:
+                    output_tweet[k].append(m['media_url_https'])
+
+            elif k == "id" and v:
+                # make url from id and dispose id
+                output_tweet['url'] = "twitter.com/anyuser/status/" + str(v)
+
+            else:
+                # keep k:v same
+                output_tweet[k] = v
+
+        output_tweets.append(output_tweet)
+
+    return output_tweets
 
 
 # API call
@@ -50,6 +162,8 @@ def get_top_trends_from_twitter_api(country='Japan', exclude_hashtags=True):
     # WOEID
     woeid_client = yweather.Client()
     woeid = woeid_client.fetch_woeid(location=country)
+
+    check_rate_limit()
 
     if exclude_hashtags :
         trends = api.GetTrendsWoeid(woeid, exclude='hashtags')
@@ -78,61 +192,16 @@ def get_top_trends_from_twitter_api(country='Japan', exclude_hashtags=True):
             "volume": tw_volume,
             "time": timestamp_utc_str,
             "query": trend['query'],
-            "url": trend['url']
+            "url": trend['url'],
+            "tweets": analyze_trending_keyword(trend['name'])
         })
 
     output_json = json.dumps(output, ensure_ascii=False)
     return output_json
 
 
-# database call and caching
-def get_top_trends_from_twitter(country='Japan', exclude_hashtags=False, debug=False, cache_duration_mins=15, append_db=True):
-    cache_db = load_db(database_path=db_path, debug=False)
-    trends_db = cache_db['trends']
-    if exclude_hashtags:
-        trends_cache = trends_db['exclude_hashtags']
-    else:
-        trends_cache = trends_db['include_hashtags']
-
-    # compare db and now
-    try:
-        db_timestamp = str_2_datetime(trends_cache['timestamp'], input_format=time_format_full_with_timezone)
-    except ValueError:
-        db_timestamp = str_2_datetime(trends_cache['timestamp'], input_format=time_format_full_no_timezone)
-        db_timestamp = db_timestamp.astimezone(tz=pytz.utc)
-
-    rq_timestamp = datetime.datetime.now(tz=pytz.utc)
-
-    time_diff = rq_timestamp - db_timestamp
-    print('time since last trends API call: {} (h:m:s)'.format(time_diff))
-    print('time diff in seconds: {}'.format(time_diff.seconds))
-    print('time in db: {}'.format(db_timestamp))
-    print('time in rq: {}'.format(rq_timestamp))
-    if time_diff.seconds < cache_duration_mins*60:
-        print('less than cache duration, returning cache')
-        output_json = json.dumps(trends_cache['content'], ensure_ascii=False)
-        return output_json
-    else:
-        output_json = get_top_trends_from_twitter_api(country=country, exclude_hashtags=exclude_hashtags)
-        # update
-        output_list = json.loads(output_json)
-
-        if append_db:
-            output_list = trends_cache['content'] + output_list
-            
-        if exclude_hashtags:
-            cache_db['trends']['exclude_hashtags']['content'] = output_list
-            cache_db['trends']['exclude_hashtags']['timestamp'] = datetime_2_str(rq_timestamp, output_format=time_format_full_with_timezone)
-        else:
-            cache_db['trends']['include_hashtags']['content'] = output_list
-            cache_db['trends']['include_hashtags']['timestamp'] = datetime_2_str(rq_timestamp, output_format=time_format_full_with_timezone)
-
-        update_db(cache_db, database_path=db_path, debug=debug)
-        return output_json
-
-
-# API call
-def get_top_hashtags_from_twitter_api(country='Japan', debug=False):
+# API call (for extended search)
+def get_top_hashtags_from_twitter_api(country='Japan', extended_search=True, debug=False):
     """
     an extension of get_top_trends_from_twitter()
     make an API call for top trends, then visit each URL to get grab hashtags from top 10 twitter posts
@@ -206,6 +275,7 @@ def get_top_hashtags_from_twitter_api(country='Japan', debug=False):
     return output_json
 
 
+
 # database call and caching
 def get_top_hashtags_from_twitter(country='Japan', debug=False, cache_duration_mins=15, append_db=True):
     cache_db = load_db(database_path=db_path, debug=False)
@@ -236,6 +306,94 @@ def get_top_hashtags_from_twitter(country='Japan', debug=False, cache_duration_m
 
         update_db(cache_db, database_path=db_path, debug=debug)
         return output_json
+
+
+# database call and caching
+def get_top_trends_from_twitter(country='Japan', exclude_hashtags=False, debug=False, cache_duration_mins=15, append_db=True):
+    cache_db = load_db(database_path=db_path, debug=False)
+    trends_db = cache_db['trends']
+    if exclude_hashtags:
+        trends_cache = trends_db['exclude_hashtags']
+    else:
+        trends_cache = trends_db['include_hashtags']
+
+    # compare db and now
+    try:
+        db_timestamp = str_2_datetime(trends_cache['timestamp'], input_format=time_format_full_with_timezone)
+    except ValueError:
+        db_timestamp = str_2_datetime(trends_cache['timestamp'], input_format=time_format_full_no_timezone)
+        db_timestamp = db_timestamp.astimezone(tz=pytz.utc)
+
+    rq_timestamp = datetime.datetime.now(tz=pytz.utc)
+
+    time_diff = rq_timestamp - db_timestamp
+    print('time since last trends API call: {} (h:m:s)'.format(time_diff))
+    print('time diff in seconds: {}'.format(time_diff.seconds))
+    print('time in db: {}'.format(db_timestamp))
+    print('time in rq: {}'.format(rq_timestamp))
+
+    if time_diff.seconds < cache_duration_mins*60:
+        print('less than cache duration, returning cache')
+        output_json = json.dumps(trends_cache['content'], ensure_ascii=False)
+        return output_json
+    else:
+        output_json = get_top_trends_from_twitter_api(country=country, exclude_hashtags=exclude_hashtags)
+        # update
+        output_list = json.loads(output_json)
+
+        if append_db:
+            output_list = trends_cache['content'] + output_list
+            
+        if exclude_hashtags:
+            cache_db['trends']['exclude_hashtags']['content'] = output_list
+            cache_db['trends']['exclude_hashtags']['timestamp'] = datetime_2_str(rq_timestamp, output_format=time_format_full_with_timezone)
+        else:
+            cache_db['trends']['include_hashtags']['content'] = output_list
+            cache_db['trends']['include_hashtags']['timestamp'] = datetime_2_str(rq_timestamp, output_format=time_format_full_with_timezone)
+
+        update_db(cache_db, database_path=db_path, debug=debug)
+        return output_json
+
+
+# # databse call and caching
+# def get_trends_search_from_twitter(country='Japan', exclude_hashtags=False, debug=False, cache_duration_mins=15, append_db=True):
+#     cache_db = load_db(database_path=db_path, debug=False)
+#     trends_db = cache_db['trends']
+#     if exclude_hashtags:
+#         trends_cache = trends_db['exclude_hashtags']
+#     else:
+#         trends_cache = trends_db['include_hashtags']
+#
+#     # compare db and now
+#     try:
+#         db_timestamp = str_2_datetime(trends_cache['timestamp'], input_format=time_format_full_with_timezone)
+#     except ValueError:
+#         db_timestamp = str_2_datetime(trends_cache['timestamp'], input_format=time_format_full_no_timezone)
+#         db_timestamp = db_timestamp.astimezone(tz=pytz.utc)
+#
+#     rq_timestamp = datetime.datetime.now(tz=pytz.utc)
+#
+#     time_diff = rq_timestamp - db_timestamp
+#     print('time since last trends API call: {} (h:m:s)'.format(time_diff))
+#     print('time diff in seconds: {}'.format(time_diff.seconds))
+#     print('time in db: {}'.format(db_timestamp))
+#     print('time in rq: {}'.format(rq_timestamp))
+#
+#     if time_diff.seconds < cache_duration_mins * 60:
+#         print('less than cache duration, returning cache')
+#         output_json = json.dumps(trends_cache['content'], ensure_ascii=False)
+#         return output_json
+#     else:
+#         print('calling api for trends search (180 searches per 15 mins quota)')
+#         output_json = get_top_trends_from_twitter_api(country=country, exclude_hashtags=exclude_hashtags)
+#
+#         # update
+#         output_list = json.loads(output_json)
+#
+#         if append_db:
+#             output_list = trends_cache['content'] + output_list
+#
+#
 
 
 if __name__ == '__main__':
