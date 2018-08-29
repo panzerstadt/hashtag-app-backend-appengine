@@ -247,10 +247,11 @@ def images():
 
     output_content = []
     for c in contents:
-        output_media_url = []
+        output_media_url = {}
         try:
             for t in c['tweets']:
-                output_media_url += t['media']
+                if t['media']:
+                    output_media_url[t['url']] = t['media']
         except:
             continue
 
