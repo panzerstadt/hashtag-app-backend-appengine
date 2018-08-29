@@ -95,11 +95,18 @@ def daily():
     print("time since app start: {:.2f} minutes".format((time.time() - start_time) / 60))
     print("time since last update: {:.2f} minutes".format((time.time() - update_start) / 60))
 
-    full_db = load_db(database_path=DATABASE_PATH)
+    output = {
+        "endpoints": {
+            "/": "landing page",
+            "/twitter/hashtags": "currently not supported",
+            "/twitter/trends": "returns minimal trends db since the beginning of time",
+            "/twitter/trends/images": "returns minimal images db since the beginning of time",
+            "/twitter/rate_limit": "checks twitter for rate limiting",
+            "/db": "full database, VERY HEAVY",
+        }
+    }
 
-    #print(full_db)
-
-    return "hello {}".format('WAIT')
+    return jsonify(output)
 
 
 @app.route('/twitter/hashtags')
@@ -169,6 +176,12 @@ def all():
     print("time since last update: {:.2f} minutes".format((datetime.datetime.now(tz=pytz.utc) - db_update_timestamp).seconds/60))
 
     return jsonify(full_db)
+
+
+@app.route('/db/backup', methods=['GET'])
+def backup():
+    backup_db = load_db(database_path=DATABASE_PATH + '.bak')
+    return jsonify(backup_db)
 
 
 @app.route('/twitter/trends', methods={'GET'})
@@ -247,11 +260,14 @@ def images():
 
     output_content = []
     for c in contents:
-        output_media_url = {}
+        output_media_url = []
         try:
             for t in c['tweets']:
                 if t['media']:
-                    output_media_url[t['url']] = t['media']
+                    output_media_url.append({
+                        "url": t['url'],
+                        "images": t['media']
+                    })
         except:
             continue
 

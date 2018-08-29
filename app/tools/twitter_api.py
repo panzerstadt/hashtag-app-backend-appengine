@@ -128,9 +128,15 @@ def analyze_trending_keyword(keyword="pokemon", count=100):
                 for m in v:
                     output_tweet[k].append(m['media_url_https'])
 
+            elif k == "retweeted_status":
+                try:
+                    output_tweet['favourites'] = v['favorite_count']
+                except KeyError:
+                    output_tweet['favourites'] = 0
+
             elif k == "id" and v:
                 # make url from id and dispose id
-                output_tweet['url'] = "twitter.com/anyuser/status/" + str(v)
+                output_tweet['url'] = "https://twitter.com/anyuser/status/" + str(v)
 
             else:
                 # keep k:v same
