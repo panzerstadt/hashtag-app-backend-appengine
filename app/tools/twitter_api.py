@@ -4,11 +4,11 @@ import datetime
 import pytz
 
 import twitter
-from app.hidden.hidden import Twitter
+from hidden.hidden import Twitter
 
-from app.tools.db_utils import load_db, update_db
-from app.tools.time_utils import str_2_datetime, datetime_2_str, str_to_unix_timestamp
-from app.tools.baseutils import get_filepath
+from tools.db_utils import load_db, update_db
+from tools.time_utils import str_2_datetime, datetime_2_str, str_to_unix_timestamp
+from tools.baseutils import get_filepath
 
 db_path = get_filepath('./db/daily_database.json')
 img_db_path = get_filepath('./db/daily_trend_search_database.json')
