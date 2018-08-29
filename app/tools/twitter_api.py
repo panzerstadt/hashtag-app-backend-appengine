@@ -4,13 +4,14 @@ import datetime
 import pytz
 
 import twitter
-from hidden.hidden import Twitter
+from app.hidden.hidden import Twitter
 
-from tools.db_utils import load_db, update_db
-from tools.time_utils import str_2_datetime, datetime_2_str, str_to_unix_timestamp
-from tools.baseutils import get_filepath
+from app.tools.db_utils import load_db, update_db
+from app.tools.time_utils import str_2_datetime, datetime_2_str, str_to_unix_timestamp
+from app.tools.baseutils import get_filepath
 
 db_path = get_filepath('./db/daily_database.json')
+img_db_path = get_filepath('./db/daily_trend_search_database.json')
 time_format_full_with_timezone = '%Y-%m-%d %H:%M:%S%z'
 time_format_full_no_timezone = '%Y-%m-%d %H:%M:%S'
 time_format_twitter_trends = '%Y-%m-%dT%H:%M:%SZ'
@@ -73,7 +74,7 @@ def check_rate_limit(endpoint="GetSearch", debug=False):
 
 
 # API call
-def get_search_tweets(query="pokemon", return_list=['media', 'text', 'hashtags', 'retweet_count', 'id'], count=100, debug=False):
+def get_search_tweets(query="pokemon", return_list=['media', 'text', 'hashtags', 'retweet_count', 'retweeted_status', 'id'], count=100, debug=False):
     """
     search limit: 180 / 15 mins
     status limit:
@@ -107,13 +108,14 @@ def get_search_tweets(query="pokemon", return_list=['media', 'text', 'hashtags',
 
 
 # helper function for search_tweets
-def analyze_trending_keyword(keyword="pokemon", count=100):
+def analyze_trending_keyword(keyword="pokemon", count=100, keep_all=False, debug=False):
     """
     i can do a 180 of these every 15 mins
     meaning i can analyze 180 keywords every 15 mins, returning all images
     :param keyword:
     :return:
     """
+    print('analyzing keyword: {}'.format(keyword))
     tweets = get_search_tweets(query=keyword, count=count)
 
     output_tweets = []
@@ -130,21 +132,39 @@ def analyze_trending_keyword(keyword="pokemon", count=100):
 
             elif k == "retweeted_status":
                 try:
-                    output_tweet['favourites'] = v['favorite_count']
+                    output_tweet['likes'] = v['favorite_count']
                 except KeyError:
-                    output_tweet['favourites'] = 0
+                    output_tweet['likes'] = 0
 
             elif k == "id" and v:
                 # make url from id and dispose id
                 output_tweet['url'] = "https://twitter.com/anyuser/status/" + str(v)
 
+            elif k == "retweet_count":
+                if v:
+                    if debug: print('       picking this: ', k, v)
+                    output_tweet[k] = v
+                else:
+                    if debug: print('       skipping this: ', k, v)
+                    # not keeping those with 0 RT
+                    output_tweet[k] = 0
+
             else:
                 # keep k:v same
+                if debug: print('keeping this: ', k, repr(v))
                 output_tweet[k] = v
 
         output_tweets.append(output_tweet)
 
-    return output_tweets
+    output = []
+    if not keep_all:
+        for o in output_tweets:
+            if o['likes'] > 0 and o['retweet_count'] > 0:
+                output.append(o)
+    else:
+        output = output_tweets
+
+    return output
 
 
 # API call
@@ -177,6 +197,7 @@ def get_top_trends_from_twitter_api(country='Japan', exclude_hashtags=True):
         trends = api.GetTrendsWoeid(woeid, exclude=None)
 
     output = []
+    images_output = []
     for trend in trends:
         trend = trend.AsDict()
 
@@ -199,11 +220,17 @@ def get_top_trends_from_twitter_api(country='Japan', exclude_hashtags=True):
             "time": timestamp_utc_str,
             "query": trend['query'],
             "url": trend['url'],
-            "tweets": analyze_trending_keyword(trend['name'])
+        })
+
+        images_output.append({
+            "label": trend['name'],
+            "time": timestamp_utc_str,
+            "tweets": analyze_trending_keyword(trend['name'], count=50)
         })
 
     output_json = json.dumps(output, ensure_ascii=False)
-    return output_json
+    images_output_json = json.dumps(images_output, ensure_ascii=False)
+    return output_json, images_output_json
 
 
 # API call (for extended search)
@@ -281,7 +308,6 @@ def get_top_hashtags_from_twitter_api(country='Japan', extended_search=True, deb
     return output_json
 
 
-
 # database call and caching
 def get_top_hashtags_from_twitter(country='Japan', debug=False, cache_duration_mins=15, append_db=True):
     cache_db = load_db(database_path=db_path, debug=False)
@@ -316,8 +342,20 @@ def get_top_hashtags_from_twitter(country='Japan', debug=False, cache_duration_m
 
 # database call and caching
 def get_top_trends_from_twitter(country='Japan', exclude_hashtags=False, debug=False, cache_duration_mins=15, append_db=True):
+    """
+    also updates daily trends db, but doesn't return it
+    :param country:
+    :param exclude_hashtags:
+    :param debug:
+    :param cache_duration_mins:
+    :param append_db:
+    :return:
+    """
     cache_db = load_db(database_path=db_path, debug=False)
     trends_db = cache_db['trends']
+
+    img_db = load_db(database_path=img_db_path, debug=False)
+
     if exclude_hashtags:
         trends_cache = trends_db['exclude_hashtags']
     else:
@@ -343,12 +381,14 @@ def get_top_trends_from_twitter(country='Japan', exclude_hashtags=False, debug=F
         output_json = json.dumps(trends_cache['content'], ensure_ascii=False)
         return output_json
     else:
-        output_json = get_top_trends_from_twitter_api(country=country, exclude_hashtags=exclude_hashtags)
+        output_json, img_output_json = get_top_trends_from_twitter_api(country=country, exclude_hashtags=exclude_hashtags)
         # update
         output_list = json.loads(output_json)
+        trend_search_list = json.loads(img_output_json)
 
         if append_db:
             output_list = trends_cache['content'] + output_list
+            trend_search_list = img_db['trends'] + trend_search_list
             
         if exclude_hashtags:
             cache_db['trends']['exclude_hashtags']['content'] = output_list
@@ -357,7 +397,10 @@ def get_top_trends_from_twitter(country='Japan', exclude_hashtags=False, debug=F
             cache_db['trends']['include_hashtags']['content'] = output_list
             cache_db['trends']['include_hashtags']['timestamp'] = datetime_2_str(rq_timestamp, output_format=time_format_full_with_timezone)
 
+        img_db['trends'] = trend_search_list
+
         update_db(cache_db, database_path=db_path, debug=debug)
+        update_db(img_db, database_path=img_db_path, debug=debug)
         return output_json
 
 
@@ -404,7 +447,15 @@ def get_top_trends_from_twitter(country='Japan', exclude_hashtags=False, debug=F
 
 if __name__ == '__main__':
     country = 'Japan'
-    t = json.loads(get_top_hashtags_from_twitter_api(country=country))
+    # t = json.loads(get_top_hashtags_from_twitter_api(country=country))
+    #
+    # [print(x) for x in t]
+    # print(len(t))
 
-    [print(x) for x in t]
-    print(len(t))
+    # t = get_search_tweets(query='AIG', count=5, debug=False)
+    #
+    # [print(json.dumps(x, indent=4, ensure_ascii=False)) for x in t]
+
+    w = analyze_trending_keyword(keyword='AIG', count=5)
+
+    [print(json.dumps(x, indent=4, ensure_ascii=False)) for x in w]

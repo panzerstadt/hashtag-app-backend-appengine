@@ -10,7 +10,7 @@ import schedule
 from threading import Thread
 
 from tools.twitter_api import get_top_trends_from_twitter, get_top_hashtags_from_twitter, check_rate_limit
-from tools.db_utils import make_db, load_db, update_db
+from tools.db_utils import make_db, load_db, update_db, adjust_images_db
 from tools.time_utils import datetime_2_str, str_2_datetime
 
 # pretty interface
@@ -23,7 +23,7 @@ allowed_domains = [
 app = Flask(__name__)
 swagger = Swagger(app)
 app.config.update(JSON_AS_ASCII=False,
-                          JSONIFY_PRETTYPRINT_REGULAR=True)
+                  JSONIFY_PRETTYPRINT_REGULAR=True)
 CORS(app,
      origins=allowed_domains,
      resources=r'*',
@@ -37,6 +37,7 @@ time_format_full_with_timezone = '%Y-%m-%d %H:%M:%S%z'
 jp_timezone = pytz.timezone('Asia/Tokyo')
 
 DATABASE_PATH = './db/daily_database.json'
+TRENDS_DATABASE_PATH = './db/daily_trend_search_database.json'
 DATABASE_STRUCTURE = {
     "trends": {
         "include_hashtags": {
@@ -84,6 +85,7 @@ def get_updates_from_twitter():
     update_start = time.time()
 
     get_twitter_trends()
+    adjust_images_db()
     #get_twitter_extended_hashtags()
 
     print("total update time took: {} seconds".format(str(time.time() - update_start)))
@@ -250,13 +252,11 @@ def trends():
 
 @app.route('/twitter/trends/images', methods={'GET'})
 def images():
-    full_db = load_db(database_path=DATABASE_PATH)
+    full_db = load_db(database_path=TRENDS_DATABASE_PATH)
 
     # from trends content
     # send back only a portion of the db
-    results = full_db['trends']['include_hashtags']
-
-    contents = results['content']
+    contents = full_db['trends']
 
     output_content = []
     for c in contents:
@@ -278,9 +278,7 @@ def images():
         })
 
     output_results = {
-        "content": output_content,
-        "timestamp": results['timestamp'],
-        "initial_timestamp": results['initial_timestamp']
+        "content": output_content
     }
 
     trends_output = {
