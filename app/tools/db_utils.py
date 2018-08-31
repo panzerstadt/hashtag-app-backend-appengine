@@ -3,7 +3,8 @@ import os
 
 
 db_path = './db/daily_database.json'
-img_db_path = "./db/daily_trend_search_database.json"
+img_db_path = './db/daily_trend_search_database.json'
+top_retweets_db_path = './db/daily_top_rt_database.json'
 
 
 def load_db(database_path=db_path, debug=False):
@@ -112,6 +113,37 @@ def adjust_images_db(database_path=img_db_path, max_capacity=65000, num_to_delet
 
         if debug:
             print('{} has {} tweets in db'.format(tweets['label'], tw_len))
+
+    print('\ntotal tweets: {}'.format(total_tweets))
+
+    if total_tweets <= max_capacity:
+        print('images db within max capacity. not adjusting.')
+    else:
+        print('images db close to over capacity. deleting 30 oldest trends')
+        state['trends'] = state['trends'][num_to_delete:]
+    # ---------------
+
+    with open(database_path + '.tmp', 'w') as json_db:
+        if debug:
+            print('saving state')
+        json.dump(state, json_db, indent=4, ensure_ascii=False)
+
+    os.rename(database_path, database_path + '.bak')
+    os.rename(database_path + '.tmp', database_path)
+    print('database updated. backup replaced.')
+
+
+def adjust_top_posts_db(database_path=top_retweets_db_path, max_capacity=100000, num_to_delete=30, debug=False):
+    with open(database_path, 'r') as json_db:
+        state_str = json_db.read()
+        state = json.loads(state_str)
+        if debug:
+            print('current state')
+            print(json.dumps(state, indent=4, ensure_ascii=False))
+            print('replacing state (this is not redux yet)')
+
+    # checking logic
+    total_tweets = len(state['top_posts'])
 
     print('\ntotal tweets: {}'.format(total_tweets))
 

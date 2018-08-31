@@ -9,8 +9,8 @@ import time, datetime, pytz
 import schedule
 from threading import Thread
 
-from tools.twitter_api import get_top_trends_from_twitter, get_top_hashtags_from_twitter, check_rate_limit
-from tools.db_utils import make_db, load_db, update_db, adjust_images_db
+from tools.twitter_api import get_top_trends_from_twitter, get_top_hashtags_from_twitter, get_update_top_posts_from_twitter, check_rate_limit
+from tools.db_utils import make_db, load_db, update_db, adjust_images_db, adjust_top_posts_db
 from tools.time_utils import datetime_2_str, str_2_datetime
 
 # pretty interface
@@ -38,6 +38,7 @@ jp_timezone = pytz.timezone('Asia/Tokyo')
 
 DATABASE_PATH = './db/daily_database.json'
 TRENDS_DATABASE_PATH = './db/daily_trend_search_database.json'
+TOP_RETWEETS_DATABASE_PATH = './db/daily_top_rt_database.json'
 DATABASE_STRUCTURE = {
     "trends": {
         "include_hashtags": {
@@ -86,6 +87,8 @@ def get_updates_from_twitter():
 
     get_twitter_trends()
     adjust_images_db()
+    get_update_top_posts_from_twitter()
+    adjust_top_posts_db()
     #get_twitter_extended_hashtags()
 
     print("total update time took: {} seconds".format(str(time.time() - update_start)))
@@ -103,6 +106,7 @@ def daily():
             "/twitter/hashtags": "currently not supported",
             "/twitter/trends": "returns minimal trends db since the beginning of time",
             "/twitter/trends/images": "returns minimal images db since the beginning of time",
+            "/twitter/top_posts": "returns top N tweets since the beginning of time (default 30)",
             "/twitter/rate_limit": "checks twitter for rate limiting",
             "/db": "full database, VERY HEAVY",
         }
@@ -168,14 +172,24 @@ def all():
                   type: number
                   default: 200
     """
-    full_db = load_db(database_path=DATABASE_PATH)
+    args = request.args.get('q')
+    if not args:
+        args = "main"
 
-    db_init_timestamp = str_2_datetime(full_db['trends']['include_hashtags']['initial_timestamp'], input_format=time_format_full_with_timezone)
-    db_update_timestamp = str_2_datetime(full_db['trends']['include_hashtags']['timestamp'], input_format=time_format_full_with_timezone)
+    if args == "main":
+        full_db = load_db(database_path=DATABASE_PATH)
 
-    print("time since app start: {:.2f} minutes".format((time.time() - start_time) / 60))
-    print("time since database init: {:.2f} hours".format((datetime.datetime.now(tz=pytz.utc) - db_init_timestamp).seconds/3600))
-    print("time since last update: {:.2f} minutes".format((datetime.datetime.now(tz=pytz.utc) - db_update_timestamp).seconds/60))
+        db_init_timestamp = str_2_datetime(full_db['trends']['include_hashtags']['initial_timestamp'], input_format=time_format_full_with_timezone)
+        db_update_timestamp = str_2_datetime(full_db['trends']['include_hashtags']['timestamp'], input_format=time_format_full_with_timezone)
+
+        print("time since app start: {:.2f} minutes".format((time.time() - start_time) / 60))
+        print("time since database init: {:.2f} hours".format((datetime.datetime.now(tz=pytz.utc) - db_init_timestamp).seconds/3600))
+        print("time since last update: {:.2f} minutes".format((datetime.datetime.now(tz=pytz.utc) - db_update_timestamp).seconds/60))
+
+    elif args == "trends":
+        full_db = load_db(database_path=TRENDS_DATABASE_PATH)
+    elif args == "top_posts":
+        full_db = load_db(database_path=TOP_RETWEETS_DATABASE_PATH)
 
     return jsonify(full_db)
 
@@ -250,7 +264,7 @@ def trends():
     return jsonify(trends_output)
 
 
-@app.route('/twitter/trends/images', methods={'GET'})
+@app.route('/twitter/trends/images', methods=['GET'])
 def images():
     full_db = load_db(database_path=TRENDS_DATABASE_PATH)
 
@@ -289,7 +303,30 @@ def images():
     return jsonify(trends_output)
 
 
-    pass
+@app.route('/twitter/top_posts', methods=['GET'])
+def top_posts():
+    try:
+        arg = int(request.args.get('count'))
+        if not arg:
+            arg = 100
+    except:
+        arg = 100
+
+    full_db = load_db(database_path=TOP_RETWEETS_DATABASE_PATH)
+
+    # from trends content
+    # send back only a portion of the db
+    contents = full_db['top_posts']
+
+    print('returning {} most recent items from db'.format(arg))
+
+    output = {
+        "results": contents[arg*-1:],
+        "status": "ok"
+    }
+
+    return jsonify(output)
+
 
 @app.route('/twitter/rate_limit', methods={'GET'})
 def ratelimit():
@@ -310,6 +347,8 @@ if __name__ == '__main__':
     make_db(DATABASE_STRUCTURE, debug=True)
     get_updates_from_twitter()
 
+    # right now i am using flask dev server because of the timing loop
+    # but if i am confident in my caching system i can probably use the production server and
     schedule.every(REFRESH_MINS).minutes.do(get_updates_from_twitter)
     t = Thread(target=run_schedule)
     t.start()

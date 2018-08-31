@@ -1,4 +1,6 @@
 runtime: custom
 env: flex
+instance_class: F4_1G
 automatic_scaling:
    min_num_instances: 1
+   
