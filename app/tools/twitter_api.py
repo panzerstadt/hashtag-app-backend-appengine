@@ -89,7 +89,7 @@ def check_rate_limit(endpoint="GetSearch", debug=False):
 
 
 # API call
-def get_search_tweets(query="pokemon", return_list=['media', 'text', 'hashtags', 'retweet_count', 'retweeted_status', 'id'], count=100, debug=False):
+def get_search_tweets(query="pokemon", return_list=['media', 'text', 'hashtags', 'favorite_count', 'retweet_count', 'retweeted_status', 'id'], count=100, debug=False):
     """
     search limit: 180 / 15 mins
     status limit:
@@ -123,7 +123,7 @@ def get_search_tweets(query="pokemon", return_list=['media', 'text', 'hashtags',
 
 
 # currently set to only look at japan's top performing tweets with images
-def get_search_tweet_images_raw(raw_query="q=min_retweets%3A10000%20filter%3Aimages%20lang%3Aja", return_list=['media', 'text', 'hashtags', 'retweet_count', 'retweeted_status', 'id', 'created_at'], debug=False):
+def get_search_tweet_images_raw(raw_query="q=min_retweets%3A10000%20filter%3Aimages%20lang%3Aja", return_list=['media', 'text', 'hashtags', 'retweet_count', 'favorite_count', 'retweeted_status', 'id', 'created_at'], debug=False):
     """
     buzz machine recommendation
     :param raw_query:
@@ -173,23 +173,33 @@ def process_tweets(tweets_response, keep_all=False, debug=False):
     """
     tweets = tweets_response
 
+    #print(json.dumps(tweets, indent=4, ensure_ascii=False))
+
     output_tweets = []
     for tweet in tweets:
         # loop through every tweet
         output_tweet = {}
+        output_tweet['likes'] = 0
         for k, v in tweet.items():
+            if k == "favorite_count" or k == "retweeted_status":
+                # print('checking favorite_count at {}'.format(k))
+                # print(v)
+                if k == "favorite_count" and v:
+                    output_tweet['likes'] = v
+                elif k == "retweeted_status" and v:
+                    # print("rt:", v)
+                    try:
+                        output_tweet['likes'] = v['favorite_count']
+                    except:
+                        print('favorites not found')
+                        print(v)
+                        pass
 
-            if k == "media" and v:
+            elif k == "media" and v:
                 # turn media dict into img url
                 output_tweet[k] = []
                 for m in v:
                     output_tweet[k].append(m['media_url_https'])
-
-            elif k == "retweeted_status":
-                try:
-                    output_tweet['likes'] = v['favorite_count']
-                except KeyError:
-                    output_tweet['likes'] = 0
 
             elif k == "id" and v:
                 # make url from id and dispose id
@@ -218,6 +228,8 @@ def process_tweets(tweets_response, keep_all=False, debug=False):
                 if debug: print('keeping this: ', k, repr(v))
                 output_tweet[k] = v
 
+        print('num of likes: ', output_tweet['likes'])
+
         output_tweets.append(output_tweet)
 
     output = []
@@ -240,7 +252,7 @@ def analyze_trending_keyword(keyword="pokemon", count=100, keep_all=False, debug
     :return:
     """
     print('analyzing keyword: {}'.format(keyword))
-    tweets = get_search_tweets(query=keyword, count=count)
+    tweets = get_search_tweets(query=keyword, count=count, debug=debug)
 
     return process_tweets(tweets, keep_all=keep_all, debug=debug)
 
@@ -458,7 +470,13 @@ def get_update_top_posts_from_twitter(min_retweets=10000, cache_duration_mins=15
 
     update_db(top_retweets_db, database_path=top_retweets_db_path, debug=debug)
 
-    return output_list
+    print('top posts db updated.')
+
+    del top_retweets_db
+    del top_posts_cache
+    del output_list
+
+    print('memory freed.')
 
 
 # database call and caching
@@ -528,7 +546,19 @@ def get_top_trends_from_twitter(country='Japan', exclude_hashtags=False, debug=F
 
         update_db(cache_db, database_path=db_path, debug=debug)
         update_db(trend_search_db, database_path=trends_db_path, debug=debug)
-        return output_json
+
+        print('trends and image database updated.')
+
+        del cache_db
+        del trends_db
+        del trends_cache
+        del trend_search_db
+        del trend_search_list
+        del output_list
+        del output_json
+        del img_output_json
+
+        print('memory freed.')
 
 
 def check_db(db_path=top_retweets_db_path):
@@ -538,6 +568,8 @@ def check_db(db_path=top_retweets_db_path):
 
     [print(repr(x['text'])) for x in c]
     print('number of posts: ', len(c))
+    del db
+    del c
 
 
 if __name__ == '__main__':
@@ -552,15 +584,16 @@ if __name__ == '__main__':
     #
     # [print(json.dumps(x, indent=4, ensure_ascii=False)) for x in t]
 
-    #w = analyze_trending_keyword(keyword='AIG', count=5)
+    w = analyze_trending_keyword(keyword='雲の流れ', count=100, debug=False)
     # w = analyze_top_retweets(debug=True)
     #
-    # print(w)
+    print('\n\n\n\noutput')
+    print(w)
     #
-    # [print(json.dumps(x, indent=4, ensure_ascii=False)) for x in w]
+    #[print(json.dumps(x, indent=4, ensure_ascii=False)) for x in w]
 
-    get_update_top_posts_from_twitter(append_db=True)
-    check_db()
+    # get_update_top_posts_from_twitter(append_db=True)
+    # check_db()
 
     t = check_rate_limit()
     print(t)

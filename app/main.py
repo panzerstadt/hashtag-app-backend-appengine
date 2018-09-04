@@ -239,6 +239,7 @@ def trends():
 
     # send back only a portion of the db
     results = full_db['trends']['include_hashtags']
+    del full_db
 
     contents = results['content']
 
@@ -271,6 +272,7 @@ def images():
     # from trends content
     # send back only a portion of the db
     contents = full_db['trends']
+    del full_db
 
     output_content = []
     for c in contents:
@@ -317,6 +319,7 @@ def top_posts():
     # from trends content
     # send back only a portion of the db
     contents = full_db['top_posts']
+    del full_db
 
     print('returning {} most recent items from db'.format(arg))
 

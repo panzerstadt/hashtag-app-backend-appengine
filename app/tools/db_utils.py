@@ -132,6 +132,10 @@ def adjust_images_db(database_path=img_db_path, max_capacity=65000, num_to_delet
     os.rename(database_path + '.tmp', database_path)
     print('database updated. backup replaced.')
 
+    del state_str
+    del state
+
+
 
 def adjust_top_posts_db(database_path=top_retweets_db_path, max_capacity=100000, num_to_delete=30, debug=False):
     with open(database_path, 'r') as json_db:
@@ -162,6 +166,10 @@ def adjust_top_posts_db(database_path=top_retweets_db_path, max_capacity=100000,
     os.rename(database_path, database_path + '.bak')
     os.rename(database_path + '.tmp', database_path)
     print('database updated. backup replaced.')
+
+    del state_str
+    del state
+
 
 
 # MANUAL ONLY
